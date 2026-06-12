@@ -1,3 +1,4 @@
+const MODULE_ID = "planner-narratif";
 let plannerApp = null;
 
 const demoPool = [
@@ -12,7 +13,7 @@ const demoPool = [
 
 class PlannerNarratifApp extends Application {
   static get defaultOptions() {
-    const saved = game.settings.get("planner-narratif", "windowState") ?? {};
+    const saved = game.settings.get(MODULE_ID, "windowState") ?? {};
 
     return foundry.utils.mergeObject(super.defaultOptions, {
       id: "planner-narratif-window",
@@ -25,80 +26,64 @@ class PlannerNarratifApp extends Application {
     });
   }
 
-  
-async _renderInner() {
-  const timeline = this._getTimeline();
+  async _renderInner() {
+    const timeline = game.settings.get(MODULE_ID, "timeline") ?? [];
 
-  return $(`
-    <section class="planner-shell">
-      <header class="planner-header">
-        <strong>Planner Narratif</strong>
-        <span>V0.11</span>
-      </header>
+    return $(`
+      <section class="planner-shell">
+        <header class="planner-header">
+          <strong>Planner Narratif</strong>
+          <span>V0.14</span>
+        </header>
 
-      <main class="planner-body">
-        <section class="planner-section">
-          <h3>POOL</h3>
-          <div class="planner-pool">
-            ${demoPool.map(item => this._renderChip(item, "pool")).join("")}
-          </div>
-        </section>
+        <main class="planner-body">
+          <section class="planner-section">
+            <h3>POOL</h3>
+            <div class="planner-pool">
+              ${demoPool.map(item => this._renderChip(item, "pool")).join("")}
+            </div>
+          </section>
 
-        <section class="planner-section">
-          <h3>TIMELINE</h3>
-          <div class="planner-timeline">
-            ${timeline.map((item, index) => this._renderChip(item, "timeline", index)).join("")}
-          </div>
-        </section>
-      </main>
-    </section>
-  `);
-}
-
-  activateListeners(html) {
-  super.activateListeners(html);
-  this._bindPlannerEvents();
-}
-
-  _refreshContentOnly() {
-    if (!this.rendered) return;
-
-    const poolEl = this.element.find(".planner-pool");
-    const timelineEl = this.element.find(".planner-timeline");
-
-    poolEl.html(demoPool.map(item => this._renderChip(item, "pool")).join(""));
-
-    const timeline = this._getTimeline();
-    timelineEl.html(timeline.map((item, index) => this._renderChip(item, "timeline", index)).join(""));
-
-    this._bindPlannerEvents();
+          <section class="planner-section">
+            <h3>TIMELINE</h3>
+            <div class="planner-timeline">
+              ${timeline.map((item, index) => this._renderChip(item, "timeline", index)).join("")}
+            </div>
+          </section>
+        </main>
+      </section>
+    `);
   }
 
-  _bindPlannerEvents() {
-    this.element.find(".planner-chip-pool").off("click").on("click", async event => {
+  activateListeners(html) {
+    super.activateListeners(html);
+
+    html.find(".planner-chip-pool").on("click", async event => {
       const id = event.currentTarget.dataset.id;
       const item = demoPool.find(p => p.id === id);
       if (!item) return;
 
-      const timeline = this._getTimeline();
+      const timeline = game.settings.get(MODULE_ID, "timeline") ?? [];
 
       timeline.push({
         ...item,
         occurrenceId: foundry.utils.randomID()
       });
 
-      await this._setTimeline(timeline);
+      await game.settings.set(MODULE_ID, "timeline", timeline);
+      this.render(false);
     });
 
-    this.element.find(".planner-chip-timeline").off("click").on("click", async event => {
+    html.find(".planner-chip-timeline").on("click", async event => {
       if (event.detail !== 3) return;
 
       const index = Number(event.currentTarget.dataset.index);
-      const timeline = this._getTimeline();
+      const timeline = game.settings.get(MODULE_ID, "timeline") ?? [];
 
       timeline.splice(index, 1);
 
-      await this._setTimeline(timeline);
+      await game.settings.set(MODULE_ID, "timeline", timeline);
+      this.render(false);
     });
   }
 
@@ -118,25 +103,11 @@ async _renderInner() {
     `;
   }
 
-  _getTimeline() {
-    return game.settings.get("planner-narratif", "timeline") ?? [];
-  }
-
-  async _setTimeline(timeline) {
-    await game.settings.set("planner-narratif", "timeline", timeline);
-
-    this._refreshContentOnly();
-
-    game.socket.emit("module.planner-narratif", {
-      type: "timeline-updated"
-    });
-  }
-
   async close(options = {}) {
     const el = this.element?.[0];
 
     if (el) {
-      await game.settings.set("planner-narratif", "windowState", {
+      await game.settings.set(MODULE_ID, "windowState", {
         left: el.offsetLeft,
         top: el.offsetTop,
         width: el.offsetWidth,
@@ -150,7 +121,7 @@ async _renderInner() {
 }
 
 Hooks.once("init", () => {
-  game.settings.register("planner-narratif", "launcherPosition", {
+  game.settings.register(MODULE_ID, "launcherPosition", {
     scope: "client",
     config: false,
     type: Object,
@@ -160,7 +131,7 @@ Hooks.once("init", () => {
     }
   });
 
-  game.settings.register("planner-narratif", "windowState", {
+  game.settings.register(MODULE_ID, "windowState", {
     scope: "client",
     config: false,
     type: Object,
@@ -172,7 +143,7 @@ Hooks.once("init", () => {
     }
   });
 
-  game.settings.register("planner-narratif", "timeline", {
+  game.settings.register(MODULE_ID, "timeline", {
     scope: "world",
     config: false,
     type: Object,
@@ -181,13 +152,7 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("ready", () => {
-  ui.notifications.info("Planner Narratif chargé !");
-  console.log("Planner Narratif | Ready V0.11");
-
-  game.socket.on("module.planner-narratif", data => {
-    if (data?.type !== "timeline-updated") return;
-    plannerApp?._refreshContentOnly();
-  });
+  console.log("Planner Narratif | Ready V0.14");
 
   document.getElementById("planner-narratif-launcher")?.remove();
 
@@ -196,44 +161,41 @@ Hooks.once("ready", () => {
   button.title = "Planner Narratif";
   button.innerText = "⚔";
 
-  const savedPosition = game.settings.get("planner-narratif", "launcherPosition");
-
+  const savedPosition = game.settings.get(MODULE_ID, "launcherPosition");
   button.style.left = savedPosition?.left ?? "432px";
   button.style.top = savedPosition?.top ?? "851px";
 
-  let isDragging = false;
   let hasMoved = false;
   let offsetX = 0;
   let offsetY = 0;
 
+  const onMouseMove = event => {
+    hasMoved = true;
+    button.style.left = `${event.clientX - offsetX}px`;
+    button.style.top = `${event.clientY - offsetY}px`;
+    button.classList.add("dragging");
+  };
+
+  const onMouseUp = async () => {
+    document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("mouseup", onMouseUp);
+
+    button.classList.remove("dragging");
+
+    await game.settings.set(MODULE_ID, "launcherPosition", {
+      left: button.style.left,
+      top: button.style.top
+    });
+  };
+
   button.addEventListener("mousedown", event => {
-    isDragging = true;
     hasMoved = false;
 
     offsetX = event.clientX - button.offsetLeft;
     offsetY = event.clientY - button.offsetTop;
 
-    button.classList.add("dragging");
-  });
-
-  document.addEventListener("mousemove", event => {
-    if (!isDragging) return;
-
-    hasMoved = true;
-    button.style.left = `${event.clientX - offsetX}px`;
-    button.style.top = `${event.clientY - offsetY}px`;
-  });
-
-  document.addEventListener("mouseup", async () => {
-    if (!isDragging) return;
-
-    isDragging = false;
-    button.classList.remove("dragging");
-
-    await game.settings.set("planner-narratif", "launcherPosition", {
-      left: button.style.left,
-      top: button.style.top
-    });
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp, { once: true });
   });
 
   button.addEventListener("dblclick", event => {
