@@ -158,3 +158,31 @@
   background: rgba(240, 154, 74, 0.18);
   box-shadow: 0 0 8px rgba(240, 154, 74, 0.35);
 }
+
+.planner-reset {
+  width: auto;
+  height: 24px;
+  padding: 2px 8px;
+  font-size: 12px;
+  border: 1px solid rgba(255, 80, 80, 0.55);
+  border-radius: 6px;
+  background: rgba(60, 10, 10, 0.45);
+  color: #ffd0d0;
+}
+
+.planner-reset:hover {
+  background: rgba(255, 80, 80, 0.22);
+  box-shadow: 0 0 8px rgba(255, 80, 80, 0.35);
+}
+
+.planner-chip-timeline {
+  cursor: grab;
+}
+
+.planner-chip-timeline:active {
+  cursor: grabbing;
+}
+
+.planner-dragging {
+  opacity: 0.45;
+}

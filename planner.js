@@ -40,7 +40,8 @@ class PlannerNarratifApp extends Application {
           <strong>Planner Narratif</strong>
           <div class="planner-header-actions">
             <button type="button" class="planner-refresh">↻ Actualiser</button>
-            <span>V0.17</span>
+            ${game.user.isGM ? `<button type="button" class="planner-reset">Reset Timeline</button>` : ""}
+            <span>V0.18</span>
           </div>
         </header>
 
@@ -67,6 +68,23 @@ class PlannerNarratifApp extends Application {
     super.activateListeners(html);
 
     html.find(".planner-refresh").on("click", () => {
+      this.render(false);
+    });
+
+    html.find(".planner-reset").on("click", async () => {
+      if (!game.user.isGM) return;
+
+      const confirmReset = await Dialog.confirm({
+        title: "Reset Timeline",
+        content: "<p>Vider entièrement la timeline ?</p>",
+        yes: () => true,
+        no: () => false,
+        defaultYes: false
+      });
+
+      if (!confirmReset) return;
+
+      await game.settings.set(MODULE_ID, "timeline", []);
       this.render(false);
     });
 
@@ -109,6 +127,45 @@ class PlannerNarratifApp extends Application {
       await game.settings.set(MODULE_ID, "timeline", timeline);
       this.render(false);
     });
+
+    if (game.user.isGM) {
+      html.find(".planner-chip-timeline").attr("draggable", true);
+
+      html.find(".planner-chip-timeline").on("dragstart", event => {
+        event.originalEvent.dataTransfer.setData(
+          "text/plain",
+          event.currentTarget.dataset.index
+        );
+
+        event.currentTarget.classList.add("planner-dragging");
+      });
+
+      html.find(".planner-chip-timeline").on("dragend", event => {
+        event.currentTarget.classList.remove("planner-dragging");
+      });
+
+      html.find(".planner-chip-timeline").on("dragover", event => {
+        event.preventDefault();
+      });
+
+      html.find(".planner-chip-timeline").on("drop", async event => {
+        event.preventDefault();
+
+        const fromIndex = Number(event.originalEvent.dataTransfer.getData("text/plain"));
+        const toIndex = Number(event.currentTarget.dataset.index);
+
+        if (Number.isNaN(fromIndex) || Number.isNaN(toIndex)) return;
+        if (fromIndex === toIndex) return;
+
+        const timeline = game.settings.get(MODULE_ID, "timeline") ?? [];
+
+        const [moved] = timeline.splice(fromIndex, 1);
+        timeline.splice(toIndex, 0, moved);
+
+        await game.settings.set(MODULE_ID, "timeline", timeline);
+        this.render(false);
+      });
+    }
   }
 
   _renderChip(item, zone, index = null) {
@@ -176,7 +233,7 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("ready", () => {
-  console.log("Planner Narratif | Ready V0.17");
+  console.log("Planner Narratif | Ready V0.18");
 
   document.getElementById("planner-narratif-launcher")?.remove();
 
