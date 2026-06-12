@@ -17,5 +17,7 @@
   ],
   "styles": [
     "planner.css"
-  ]
+  ],
+  "manifest": "https://raw.githubusercontent.com/elesmondes-bremmort/planner-narratif/main/module.json",
+  "download": "https://github.com/elesmondes-bremmort/planner-narratif/archive/refs/heads/main.zip"
 }
