@@ -1,27 +1,17 @@
 #planner-narratif-launcher {
   position: fixed;
   z-index: 10000;
-
   width: 36px;
   height: 36px;
-
   border: 1px solid #f09a4a;
   border-radius: 8px;
-
   background: rgba(20, 15, 10, 0.25);
   color: #f0d8a8;
-
   cursor: move;
   opacity: 0.35;
-
   font-size: 18px;
   line-height: 1;
-
-  transition:
-    opacity 0.15s ease,
-    background 0.15s ease,
-    box-shadow 0.15s ease;
-
+  transition: opacity 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
   box-shadow: 0 0 6px rgba(240, 154, 74, 0.25);
 }
 
@@ -52,7 +42,6 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-
   padding: 8px 12px;
   border-bottom: 1px solid rgba(240, 154, 74, 0.35);
 }
@@ -66,10 +55,8 @@
 .planner-section {
   margin-bottom: 12px;
   padding: 10px;
-
   border: 1px solid rgba(240, 154, 74, 0.25);
   border-radius: 8px;
-
   background: rgba(20, 15, 10, 0.25);
 }
 
@@ -90,11 +77,9 @@
   display: flex;
   flex-wrap: nowrap;
   gap: 8px;
-
   min-height: 48px;
   overflow-x: auto;
   overflow-y: hidden;
-
   padding-bottom: 6px;
 }
 
@@ -102,13 +87,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-
-  border: 1px solid rgba(240, 216, 168, 0.45);
+  border: 2px solid rgba(240, 216, 168, 0.45);
   border-radius: 8px;
-
   background: rgba(10, 8, 6, 0.55);
   color: #f0d8a8;
-
   font-weight: 700;
   cursor: pointer;
   user-select: none;
@@ -127,18 +109,29 @@
   font-size: 13px;
 }
 
+/* PJ : bleu */
 .planner-chip-player {
-  border-color: rgba(120, 180, 255, 0.65);
+  border-color: rgba(80, 160, 255, 0.95);
+  box-shadow: inset 0 0 8px rgba(80, 160, 255, 0.15);
 }
 
+/* PNJ : vert */
 .planner-chip-npc {
-  border-color: rgba(240, 154, 74, 0.65);
+  border-color: rgba(90, 220, 130, 0.9);
+  box-shadow: inset 0 0 8px rgba(90, 220, 130, 0.13);
 }
 
+/* Monstres : rouge */
+.planner-chip-monster {
+  border-color: rgba(255, 80, 80, 0.95);
+  box-shadow: inset 0 0 8px rgba(255, 80, 80, 0.13);
+}
+
+/* Slot joueur : doré pointillé */
 .planner-chip-slot {
   border-style: dashed;
-  border-color: rgba(150, 255, 190, 0.65);
-  color: #b8ffd0;
+  border-color: rgba(240, 216, 168, 0.85);
+  color: #f0d8a8;
 }
 
 .planner-chip:hover {

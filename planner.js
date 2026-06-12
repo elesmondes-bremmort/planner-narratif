@@ -5,11 +5,104 @@ const demoPool = [
   { id: "alaric", label: "A", name: "Alaric", type: "player" },
   { id: "kaelyss", label: "K", name: "Kaelyss", type: "player" },
   { id: "torvek", label: "T", name: "Torvek", type: "player" },
-  { id: "bandit-1", label: "B1", name: "Bandit 1", type: "npc" },
-  { id: "bandit-2", label: "B2", name: "Bandit 2", type: "npc" },
-  { id: "ogre", label: "OG", name: "Ogre", type: "npc" },
+
+  { id: "garde-1", label: "G1", name: "Garde 1", type: "npc" },
+  { id: "garde-2", label: "G2", name: "Garde 2", type: "npc" },
+
+  { id: "bandit-1", label: "B1", name: "Bandit 1", type: "monster" },
+  { id: "bandit-2", label: "B2", name: "Bandit 2", type: "monster" },
+  { id: "ogre", label: "OG", name: "Ogre", type: "monster" },
+
   { id: "player-slot", label: "J", name: "Slot Joueur", type: "slot" }
 ];
+
+function canUserModifyItem(item) {
+  return game.user.isGM || item?.type === "player" || item?.type === "slot";
+}
+
+function getTimeline() {
+  return game.settings.get(MODULE_ID, "timeline") ?? [];
+}
+
+async function saveTimeline(timeline) {
+  if (!game.user.isGM) return;
+
+  await game.settings.set(MODULE_ID, "timeline", timeline);
+
+  plannerApp?._refreshTimelineOnly();
+
+  game.socket.emit(`module.${MODULE_ID}`, {
+    type: "state-updated"
+  });
+}
+
+function requestAddToTimeline(itemId) {
+  const item = demoPool.find(p => p.id === itemId);
+  if (!item) return;
+
+  if (!canUserModifyItem(item)) {
+    ui.notifications.warn("Seul le MJ peut ajouter les PNJ et monstres.");
+    return;
+  }
+
+  if (game.user.isGM) {
+    return addToTimeline(itemId);
+  }
+
+  game.socket.emit(`module.${MODULE_ID}`, {
+    type: "request-add",
+    itemId
+  });
+}
+
+function requestRemoveFromTimeline(index) {
+  const timeline = getTimeline();
+  const item = timeline[index];
+
+  if (!item) return;
+
+  if (!canUserModifyItem(item)) {
+    ui.notifications.warn("Seul le MJ peut retirer les PNJ et monstres.");
+    return;
+  }
+
+  if (game.user.isGM) {
+    return removeFromTimeline(index);
+  }
+
+  game.socket.emit(`module.${MODULE_ID}`, {
+    type: "request-remove",
+    index
+  });
+}
+
+async function addToTimeline(itemId) {
+  if (!game.user.isGM) return;
+
+  const item = demoPool.find(p => p.id === itemId);
+  if (!item) return;
+
+  const timeline = getTimeline();
+
+  timeline.push({
+    ...item,
+    occurrenceId: foundry.utils.randomID()
+  });
+
+  await saveTimeline(timeline);
+}
+
+async function removeFromTimeline(index) {
+  if (!game.user.isGM) return;
+
+  const timeline = getTimeline();
+
+  if (index < 0 || index >= timeline.length) return;
+
+  timeline.splice(index, 1);
+
+  await saveTimeline(timeline);
+}
 
 class PlannerNarratifApp extends Application {
   static get defaultOptions() {
@@ -27,13 +120,11 @@ class PlannerNarratifApp extends Application {
   }
 
   async _renderInner() {
-    const timeline = game.settings.get(MODULE_ID, "timeline") ?? [];
-
     return $(`
       <section class="planner-shell">
         <header class="planner-header">
           <strong>Planner Narratif</strong>
-          <span>V0.15</span>
+          <span>V0.16</span>
         </header>
 
         <main class="planner-body">
@@ -47,7 +138,7 @@ class PlannerNarratifApp extends Application {
           <section class="planner-section">
             <h3>TIMELINE</h3>
             <div class="planner-timeline">
-              ${timeline.map((item, index) => this._renderChip(item, "timeline", index)).join("")}
+              ${this._renderTimeline()}
             </div>
           </section>
         </main>
@@ -58,45 +149,36 @@ class PlannerNarratifApp extends Application {
   activateListeners(html) {
     super.activateListeners(html);
 
-    html.find(".planner-chip-pool").on("dblclick", async event => {
-      if (!game.user.isGM) {
-        ui.notifications.warn("Seul le MJ peut modifier la timeline pour l'instant.");
-        return;
-      }
+    html.on("dblclick", ".planner-chip-pool", event => {
+      event.preventDefault();
+      event.stopPropagation();
 
       const id = event.currentTarget.dataset.id;
-      const item = demoPool.find(p => p.id === id);
-      if (!item) return;
-
-      const timeline = game.settings.get(MODULE_ID, "timeline") ?? [];
-
-      timeline.push({
-        ...item,
-        occurrenceId: foundry.utils.randomID()
-      });
-
-      await game.settings.set(MODULE_ID, "timeline", timeline);
-      this.render(false);
+      requestAddToTimeline(id);
     });
 
-    html.find(".planner-chip-timeline").on("click", async event => {
+    html.on("click", ".planner-chip-timeline", event => {
       if (event.detail !== 3) return;
 
-      if (!game.user.isGM) {
-        ui.notifications.warn("Seul le MJ peut modifier la timeline pour l'instant.");
-        return;
-      }
+      event.preventDefault();
+      event.stopPropagation();
 
       const index = Number(event.currentTarget.dataset.index);
-      const timeline = game.settings.get(MODULE_ID, "timeline") ?? [];
-
-      if (index < 0 || index >= timeline.length) return;
-
-      timeline.splice(index, 1);
-
-      await game.settings.set(MODULE_ID, "timeline", timeline);
-      this.render(false);
+      requestRemoveFromTimeline(index);
     });
+  }
+
+  _renderTimeline() {
+    const timeline = getTimeline();
+    return timeline
+      .map((item, index) => this._renderChip(item, "timeline", index))
+      .join("");
+  }
+
+  _refreshTimelineOnly() {
+    if (!this.rendered) return;
+
+    this.element.find(".planner-timeline").html(this._renderTimeline());
   }
 
   _renderChip(item, zone, index = null) {
@@ -164,7 +246,27 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("ready", () => {
-  console.log("Planner Narratif | Ready V0.15");
+  console.log("Planner Narratif | Ready V0.16");
+
+  game.socket.on(`module.${MODULE_ID}`, async data => {
+    if (!data?.type) return;
+
+    if (data.type === "state-updated") {
+      plannerApp?._refreshTimelineOnly();
+      return;
+    }
+
+    if (!game.user.isGM) return;
+
+    if (data.type === "request-add") {
+      await addToTimeline(data.itemId);
+      return;
+    }
+
+    if (data.type === "request-remove") {
+      await removeFromTimeline(data.index);
+    }
+  });
 
   document.getElementById("planner-narratif-launcher")?.remove();
 
