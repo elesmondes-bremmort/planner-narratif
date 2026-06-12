@@ -20,7 +20,7 @@ Hooks.once("init", () => {
     config: false,
     type: Object,
     default: {
-      left: "432px",
+      left: "550px",
       top: "851px"
     }
   });
