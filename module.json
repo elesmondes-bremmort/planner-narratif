@@ -1,0 +1,21 @@
+{
+  "id": "planner-narratif",
+  "title": "Planner Narratif",
+  "description": "Planner narratif pour Foundry VTT",
+  "version": "0.0.1",
+  "authors": [
+    {
+      "name": "Bremmort"
+    }
+  ],
+  "compatibility": {
+    "minimum": "13",
+    "verified": "13"
+  },
+  "scripts": [
+    "planner.js"
+  ],
+  "styles": [
+    "planner.css"
+  ]
+}
