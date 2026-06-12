@@ -202,3 +202,25 @@
   background: rgba(90, 220, 130, 0.18);
   box-shadow: 0 0 8px rgba(90, 220, 130, 0.35);
 }
+
+.planner-chip-played {
+  border-color: #000000 !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.planner-chip-played::after {
+  content: "";
+  position: absolute;
+  width: 150%;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.95);
+  transform: rotate(-45deg);
+  top: 50%;
+  left: -25%;
+  pointer-events: none;
+}
+
+.planner-chip-played {
+  opacity: 0.85;
+}
