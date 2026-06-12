@@ -1,14 +1,23 @@
 #planner-narratif-launcher {
   position: fixed;
-  top: 80px;
-  left: 300px;
+  top: 90px;
+  left: 90px;
   z-index: 10000;
   padding: 6px 10px;
-  border: 1px solid #b89b5e;
-  border-radius: 6px;
-  background: rgba(20, 15, 10, 0.9);
+  border: 1px solid #f09a4a;
+  border-radius: 8px;
+  background: rgba(20, 15, 10, 0.35);
   color: #f0d8a8;
-  cursor: pointer;
+  cursor: move;
+  opacity: 0.35;
+  transition: opacity 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 0 6px rgba(240, 154, 74, 0.25);
+}
+
+#planner-narratif-launcher:hover {
+  opacity: 1;
+  background: rgba(20, 15, 10, 0.92);
+  box-shadow: 0 0 10px rgba(240, 154, 74, 0.7);
 }
 
 .planner-narratif-content {
