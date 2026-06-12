@@ -51,13 +51,36 @@
 .planner-header {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
+  align-items: center;
+
   padding: 8px 12px;
   border-bottom: 1px solid rgba(240, 154, 74, 0.35);
 }
 
 .planner-body {
-  padding: 12px;
   flex: 1;
+  padding: 12px;
   overflow: auto;
+}
+
+.planner-section {
+  margin-bottom: 14px;
+  padding: 10px;
+
+  border: 1px solid rgba(240, 154, 74, 0.25);
+  border-radius: 8px;
+
+  background: rgba(20, 15, 10, 0.25);
+}
+
+.planner-section h3 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  color: #f0d8a8;
+}
+
+.planner-empty {
+  font-style: italic;
+  opacity: 0.75;
 }

@@ -2,54 +2,56 @@ let plannerApp = null;
 
 class PlannerNarratifApp extends Application {
   static get defaultOptions() {
-    const saved = game.settings.get("planner-narratif", "windowState");
+    const saved = game.settings.get("planner-narratif", "windowState") ?? {};
 
     return foundry.utils.mergeObject(super.defaultOptions, {
       id: "planner-narratif-window",
       title: "Planner Narratif",
-      template: null,
-      popOut: true,
-      resizable: true,
-      width: saved?.width ?? 560,
-      height: saved?.height ?? 260,
-      top: saved?.top ?? 120,
-      left: saved?.left ?? 320
+      width: saved.width ?? 560,
+      height: saved.height ?? 300,
+      top: saved.top ?? 120,
+      left: saved.left ?? 320,
+      resizable: true
     });
   }
 
-  async _renderHTML() {
-    return `
+  async _renderInner() {
+    return $(`
       <section class="planner-shell">
         <header class="planner-header">
           <strong>Planner Narratif</strong>
-          <span>V0.7</span>
+          <span>V0.8</span>
         </header>
 
         <main class="planner-body">
-          <h2>Hello Ravessandre !</h2>
-          <p>Fenêtre flottante, déplaçable et redimensionnable.</p>
+          <section class="planner-section">
+            <h3>POOL</h3>
+            <div class="planner-empty">Aucun protagoniste.</div>
+          </section>
+
+          <section class="planner-section">
+            <h3>TIMELINE</h3>
+            <div class="planner-empty">Aucune action planifiée.</div>
+          </section>
         </main>
       </section>
-    `;
+    `);
   }
 
   async close(options = {}) {
-    await this._saveWindowState();
+    const el = this.element?.[0];
+
+    if (el) {
+      await game.settings.set("planner-narratif", "windowState", {
+        left: el.offsetLeft,
+        top: el.offsetTop,
+        width: el.offsetWidth,
+        height: el.offsetHeight
+      });
+    }
+
     plannerApp = null;
     return super.close(options);
-  }
-
-  async _saveWindowState() {
-    if (!this.element?.length) return;
-
-    const el = this.element[0];
-
-    await game.settings.set("planner-narratif", "windowState", {
-      left: el.offsetLeft,
-      top: el.offsetTop,
-      width: el.offsetWidth,
-      height: el.offsetHeight
-    });
   }
 }
 
@@ -72,14 +74,14 @@ Hooks.once("init", () => {
       left: 320,
       top: 120,
       width: 560,
-      height: 260
+      height: 300
     }
   });
 });
 
 Hooks.once("ready", () => {
   ui.notifications.info("Planner Narratif chargé !");
-  console.log("Planner Narratif | Ready V0.7");
+  console.log("Planner Narratif | Ready V0.8");
 
   document.getElementById("planner-narratif-launcher")?.remove();
 
@@ -101,8 +103,10 @@ Hooks.once("ready", () => {
   button.addEventListener("mousedown", event => {
     isDragging = true;
     hasMoved = false;
+
     offsetX = event.clientX - button.offsetLeft;
     offsetY = event.clientY - button.offsetTop;
+
     button.classList.add("dragging");
   });
 
