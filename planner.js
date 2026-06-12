@@ -25,33 +25,40 @@ class PlannerNarratifApp extends Application {
     });
   }
 
-  async _renderInner() {
-    return $(`
-      <section class="planner-shell">
-        <header class="planner-header">
-          <strong>Planner Narratif</strong>
-          <span>V0.11</span>
-        </header>
+  
+async _renderInner() {
+  const timeline = this._getTimeline();
 
-        <main class="planner-body">
-          <section class="planner-section">
-            <h3>POOL</h3>
-            <div class="planner-pool"></div>
-          </section>
+  return $(`
+    <section class="planner-shell">
+      <header class="planner-header">
+        <strong>Planner Narratif</strong>
+        <span>V0.11</span>
+      </header>
 
-          <section class="planner-section">
-            <h3>TIMELINE</h3>
-            <div class="planner-timeline"></div>
-          </section>
-        </main>
-      </section>
-    `);
-  }
+      <main class="planner-body">
+        <section class="planner-section">
+          <h3>POOL</h3>
+          <div class="planner-pool">
+            ${demoPool.map(item => this._renderChip(item, "pool")).join("")}
+          </div>
+        </section>
+
+        <section class="planner-section">
+          <h3>TIMELINE</h3>
+          <div class="planner-timeline">
+            ${timeline.map((item, index) => this._renderChip(item, "timeline", index)).join("")}
+          </div>
+        </section>
+      </main>
+    </section>
+  `);
+}
 
   activateListeners(html) {
-    super.activateListeners(html);
-    this._refreshContentOnly();
-  }
+  super.activateListeners(html);
+  this._bindPlannerEvents();
+}
 
   _refreshContentOnly() {
     if (!this.rendered) return;
