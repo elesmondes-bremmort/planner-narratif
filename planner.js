@@ -44,7 +44,7 @@ class PlannerNarratifApp extends Application {
             <button type="button" class="planner-refresh">↻ Actualiser</button>
             ${game.user.isGM ? `<button type="button" class="planner-add">+ Ajouter</button>` : ""}
             ${game.user.isGM ? `<button type="button" class="planner-reset">Fin du Tour</button>` : ""}
-            <span>V0.20</span>
+            <span>V0.22</span>
           </div>
         </header>
 
@@ -70,9 +70,7 @@ class PlannerNarratifApp extends Application {
   activateListeners(html) {
     super.activateListeners(html);
 
-    html.find(".planner-refresh").on("click", () => {
-      this.render(false);
-    });
+    html.find(".planner-refresh").on("click", () => this.render(false));
 
     html.find(".planner-add").on("click", () => {
       if (!game.user.isGM) return;
@@ -108,7 +106,7 @@ class PlannerNarratifApp extends Application {
 
       const timeline = getTimeline();
 
-      timeline.unshift({
+      timeline.push({
         ...item,
         occurrenceId: foundry.utils.randomID(),
         played: false
@@ -126,7 +124,6 @@ class PlannerNarratifApp extends Application {
       const id = event.currentTarget.dataset.id;
       const pool = getPool();
       const item = pool.find(p => p.id === id);
-
       if (!item) return;
 
       const confirmDelete = await Dialog.confirm({
@@ -139,49 +136,51 @@ class PlannerNarratifApp extends Application {
 
       if (!confirmDelete) return;
 
-      const newPool = pool.filter(p => p.id !== id);
-      const newTimeline = getTimeline().filter(t => t.id !== id);
-
-      await setPool(newPool);
-      await setTimeline(newTimeline);
+      await setPool(pool.filter(p => p.id !== id));
+      await setTimeline(getTimeline().filter(t => t.id !== id));
 
       this.render(false);
     });
 
-    html.find(".planner-chip-timeline").on("click", async event => {
+    html.find(".planner-chip-timeline").on("contextmenu", async event => {
+      event.preventDefault();
+
       if (!game.user.isGM) {
         ui.notifications.warn("Seul le MJ peut modifier la timeline pour l'instant.");
         return;
       }
 
-      if (event.detail === 1) {
-        const index = Number(event.currentTarget.dataset.index);
-        const timeline = getTimeline();
+      const index = Number(event.currentTarget.dataset.index);
+      const timeline = getTimeline();
 
-        if (index < 0 || index >= timeline.length) return;
+      if (index < 0 || index >= timeline.length) return;
 
-        timeline[index].played = !timeline[index].played;
+      timeline[index].played = !timeline[index].played;
 
-        await setTimeline(timeline);
-        this.render(false);
-      }
-
-      if (event.detail === 3) {
-        const index = Number(event.currentTarget.dataset.index);
-        const timeline = getTimeline();
-
-        if (index < 0 || index >= timeline.length) return;
-
-        timeline.splice(index, 1);
-
-        await setTimeline(timeline);
-        this.render(false);
-      }
+      await setTimeline(timeline);
+      this.render(false);
     });
 
-    if (game.user.isGM) {
-      this._activateDragAndDrop(html);
-    }
+    html.find(".planner-chip-timeline").on("click", async event => {
+      if (event.detail !== 3) return;
+
+      if (!game.user.isGM) {
+        ui.notifications.warn("Seul le MJ peut modifier la timeline pour l'instant.");
+        return;
+      }
+
+      const index = Number(event.currentTarget.dataset.index);
+      const timeline = getTimeline();
+
+      if (index < 0 || index >= timeline.length) return;
+
+      timeline.splice(index, 1);
+
+      await setTimeline(timeline);
+      this.render(false);
+    });
+
+    if (game.user.isGM) this._activateDragAndDrop(html);
   }
 
   _activateDragAndDrop(html) {
@@ -232,7 +231,7 @@ class PlannerNarratifApp extends Application {
         const item = getPool().find(p => p.id === data.id);
         if (!item) return;
 
-        timeline.unshift({
+        timeline.push({
           ...item,
           occurrenceId: foundry.utils.randomID(),
           played: false
@@ -258,18 +257,16 @@ class PlannerNarratifApp extends Application {
         const item = getPool().find(p => p.id === data.id);
         if (!item) return;
 
+        const newOccurrence = {
+          ...item,
+          occurrenceId: foundry.utils.randomID(),
+          played: false
+        };
+
         if (timeline[targetIndex]?.type === "slot") {
-          timeline[targetIndex] = {
-            ...item,
-            occurrenceId: foundry.utils.randomID(),
-            played: false
-          };
+          timeline[targetIndex] = newOccurrence;
         } else {
-          timeline.splice(targetIndex, 0, {
-            ...item,
-            occurrenceId: foundry.utils.randomID(),
-            played: false
-          });
+          timeline.splice(targetIndex, 0, newOccurrence);
         }
 
         await setTimeline(timeline);
@@ -309,13 +306,13 @@ class PlannerNarratifApp extends Application {
     const content = `
       <form class="planner-create-form">
         <div class="form-group">
-          <label>Nom</label>
-          <input type="text" name="name" placeholder="Alaric" />
+          <label>Nom de base</label>
+          <input type="text" name="name" placeholder="Bandit" />
         </div>
 
         <div class="form-group">
-          <label>Label court</label>
-          <input type="text" name="label" placeholder="A" maxlength="3" />
+          <label>Label court de base</label>
+          <input type="text" name="label" placeholder="B" maxlength="3" />
         </div>
 
         <div class="form-group">
@@ -326,6 +323,11 @@ class PlannerNarratifApp extends Application {
             <option value="monster">Monstre</option>
             <option value="slot">Slot Joueur</option>
           </select>
+        </div>
+
+        <div class="form-group">
+          <label>Quantité</label>
+          <input type="number" name="quantity" value="1" min="1" max="99" />
         </div>
       </form>
     `;
@@ -340,23 +342,28 @@ class PlannerNarratifApp extends Application {
             const form = html.find(".planner-create-form")[0];
             const data = new FormData(form);
 
-            const name = String(data.get("name") ?? "").trim();
-            const label = String(data.get("label") ?? "").trim().toUpperCase();
+            const baseName = String(data.get("name") ?? "").trim();
+            const baseLabel = String(data.get("label") ?? "").trim().toUpperCase();
             const type = String(data.get("type") ?? "player");
+            const quantity = Math.max(1, Math.min(99, Number(data.get("quantity") ?? 1)));
 
-            if (!name || !label) {
+            if (!baseName || !baseLabel) {
               ui.notifications.warn("Nom et label court sont obligatoires.");
               return;
             }
 
             const pool = getPool();
 
-            pool.push({
-              id: foundry.utils.randomID(),
-              name,
-              label,
-              type
-            });
+            for (let i = 1; i <= quantity; i++) {
+              const shouldSuffix = quantity > 1;
+
+              pool.push({
+                id: foundry.utils.randomID(),
+                name: shouldSuffix ? `${baseName} ${i}` : baseName,
+                label: shouldSuffix ? `${baseLabel}${i}` : baseLabel,
+                type
+              });
+            }
 
             await setPool(pool);
             this.render(false);
@@ -443,7 +450,7 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("ready", () => {
-  console.log("Planner Narratif | Ready V0.20");
+  console.log("Planner Narratif | Ready V0.21");
 
   document.getElementById("planner-narratif-launcher")?.remove();
 
