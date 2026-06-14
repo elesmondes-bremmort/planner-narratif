@@ -2,7 +2,7 @@
   "id": "planner-narratif",
   "title": "Planner Narratif",
   "description": "Planner narratif pour Foundry VTT",
-  "version": "0.0.20",
+  "version": "0.0.21",
   "socket": true,
   "authors": [
     {
