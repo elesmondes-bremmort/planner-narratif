@@ -159,7 +159,23 @@
   box-shadow: 0 0 8px rgba(240, 154, 74, 0.35);
 }
 
-.planner-reset {
+.planner-new-turn {
+  width: auto;
+  height: 24px;
+  padding: 2px 8px;
+  font-size: 12px;
+  border: 1px solid rgba(90, 220, 130, 0.55);
+  border-radius: 6px;
+  background: rgba(10, 50, 20, 0.45);
+  color: #b8ffd0;
+}
+
+.planner-new-turn:hover {
+  background: rgba(90, 220, 130, 0.18);
+  box-shadow: 0 0 8px rgba(90, 220, 130, 0.35);
+}
+
+.planner-clear {
   width: auto;
   height: 24px;
   padding: 2px 8px;
@@ -170,7 +186,7 @@
   color: #ffd0d0;
 }
 
-.planner-reset:hover {
+.planner-clear:hover {
   background: rgba(255, 80, 80, 0.22);
   box-shadow: 0 0 8px rgba(255, 80, 80, 0.35);
 }

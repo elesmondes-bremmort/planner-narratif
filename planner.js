@@ -43,8 +43,9 @@ class PlannerNarratifApp extends Application {
           <div class="planner-header-actions">
             <button type="button" class="planner-refresh">↻ Actualiser</button>
             ${game.user.isGM ? `<button type="button" class="planner-add">+ Ajouter</button>` : ""}
-            ${game.user.isGM ? `<button type="button" class="planner-reset">Fin du Tour</button>` : ""}
-            <span>V0.22</span>
+            ${game.user.isGM ? `<button type="button" class="planner-new-turn">Nouveau Tour</button>` : ""}
+            ${game.user.isGM ? `<button type="button" class="planner-clear">Vider Timeline</button>` : ""}
+            <span>V0.23</span>
           </div>
         </header>
 
@@ -77,18 +78,26 @@ class PlannerNarratifApp extends Application {
       this._openCreateDialog();
     });
 
-    html.find(".planner-reset").on("click", async () => {
+    html.find(".planner-new-turn").on("click", async () => {
       if (!game.user.isGM) return;
 
-      const confirmReset = await Dialog.confirm({
-        title: "Fin du Tour",
+      const timeline = getTimeline().map(item => ({ ...item, played: false }));
+      await setTimeline(timeline);
+      this.render(false);
+    });
+
+    html.find(".planner-clear").on("click", async () => {
+      if (!game.user.isGM) return;
+
+      const confirmClear = await Dialog.confirm({
+        title: "Vider Timeline",
         content: "<p>Vider entièrement la timeline ?</p>",
         yes: () => true,
         no: () => false,
         defaultYes: false
       });
 
-      if (!confirmReset) return;
+      if (!confirmClear) return;
 
       await setTimeline([]);
       this.render(false);
@@ -281,11 +290,18 @@ class PlannerNarratifApp extends Application {
         if (fromIndex < 0 || fromIndex >= timeline.length) return;
         if (fromIndex === targetIndex) return;
 
+        const targetRect = event.currentTarget.getBoundingClientRect();
+        const dropAfter = event.originalEvent.clientX > targetRect.left + targetRect.width / 2;
         const [moved] = timeline.splice(fromIndex, 1);
 
         let insertIndex = targetIndex;
-        if (fromIndex < targetIndex) insertIndex = targetIndex - 1;
+        if (fromIndex < targetIndex) {
+          insertIndex = dropAfter ? targetIndex : targetIndex - 1;
+        } else {
+          insertIndex = dropAfter ? targetIndex + 1 : targetIndex;
+        }
 
+        insertIndex = Math.max(0, Math.min(insertIndex, timeline.length));
         timeline.splice(insertIndex, 0, moved);
 
         await setTimeline(timeline);
@@ -450,7 +466,7 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("ready", () => {
-  console.log("Planner Narratif | Ready V0.21");
+  console.log("Planner Narratif | Ready V0.23");
 
   document.getElementById("planner-narratif-launcher")?.remove();
 
