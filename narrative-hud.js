@@ -1,10 +1,10 @@
-const MODULE_ID = "planner-narratif";
+const MODULE_ID = "narrative-hud";
 const LAUNCHER_DEFAULT_POSITION = {
   right: "21px",
   bottom: "274px"
 };
 
-let plannerApp = null;
+let narrativeHudApp = null;
 
 function getPool() {
   return game.settings.get(MODULE_ID, "pool") ?? [];
@@ -22,13 +22,13 @@ async function setTimeline(timeline) {
   await game.settings.set(MODULE_ID, "timeline", timeline);
 }
 
-class PlannerNarratifApp extends Application {
+class NarrativeHudApp extends Application {
   static get defaultOptions() {
     const saved = game.settings.get(MODULE_ID, "windowState") ?? {};
 
     return foundry.utils.mergeObject(super.defaultOptions, {
-      id: "planner-narratif-window",
-      title: "Planner Narratif",
+      id: "narrative-hud-window",
+      title: "Narrative HUD",
       width: saved.width ?? 720,
       height: saved.height ?? 260,
       top: saved.top ?? 120,
@@ -42,29 +42,29 @@ class PlannerNarratifApp extends Application {
     const timeline = getTimeline();
 
     return $(`
-      <section class="planner-shell">
-        <header class="planner-header">
-          <div class="planner-header-spacer"></div>
-          <div class="planner-header-actions">
-            <button type="button" class="planner-refresh">↻ Actualiser</button>
-            ${game.user.isGM ? `<button type="button" class="planner-add">+ Ajouter</button>` : ""}
-            ${game.user.isGM ? `<button type="button" class="planner-new-turn">Nouveau Tour</button>` : ""}
-            ${game.user.isGM ? `<button type="button" class="planner-clear">Vider Timeline</button>` : ""}
-            <span>V0.24</span>
+      <section class="narrative-hud-shell">
+        <header class="narrative-hud-header">
+          <div class="narrative-hud-header-spacer"></div>
+          <div class="narrative-hud-header-actions">
+            <button type="button" class="narrative-hud-refresh">↻ Actualiser</button>
+            ${game.user.isGM ? `<button type="button" class="narrative-hud-add">+ Ajouter</button>` : ""}
+            ${game.user.isGM ? `<button type="button" class="narrative-hud-new-turn">Nouveau Tour</button>` : ""}
+            ${game.user.isGM ? `<button type="button" class="narrative-hud-clear">Vider Timeline</button>` : ""}
+            <span>V0.25</span>
           </div>
         </header>
 
-        <main class="planner-body">
-          <section class="planner-section">
+        <main class="narrative-hud-body">
+          <section class="narrative-hud-section">
             <h3>POOL</h3>
-            <div class="planner-pool">
+            <div class="narrative-hud-pool">
               ${pool.map(item => this._renderChip(item, "pool")).join("")}
             </div>
           </section>
 
-          <section class="planner-section">
+          <section class="narrative-hud-section">
             <h3>TIMELINE</h3>
-            <div class="planner-timeline">
+            <div class="narrative-hud-timeline">
               ${timeline.map((item, index) => this._renderChip(item, "timeline", index)).join("")}
             </div>
           </section>
@@ -76,14 +76,14 @@ class PlannerNarratifApp extends Application {
   activateListeners(html) {
     super.activateListeners(html);
 
-    html.find(".planner-refresh").on("click", () => this.render(false));
+    html.find(".narrative-hud-refresh").on("click", () => this.render(false));
 
-    html.find(".planner-add").on("click", () => {
+    html.find(".narrative-hud-add").on("click", () => {
       if (!game.user.isGM) return;
       this._openCreateDialog();
     });
 
-    html.find(".planner-new-turn").on("click", async () => {
+    html.find(".narrative-hud-new-turn").on("click", async () => {
       if (!game.user.isGM) return;
 
       const timeline = getTimeline().map(item => ({ ...item, played: false }));
@@ -91,7 +91,7 @@ class PlannerNarratifApp extends Application {
       this.render(false);
     });
 
-    html.find(".planner-clear").on("click", async () => {
+    html.find(".narrative-hud-clear").on("click", async () => {
       if (!game.user.isGM) return;
 
       const confirmClear = await Dialog.confirm({
@@ -108,7 +108,7 @@ class PlannerNarratifApp extends Application {
       this.render(false);
     });
 
-    html.find(".planner-chip-pool").on("dblclick", async event => {
+    html.find(".narrative-hud-chip-pool").on("dblclick", async event => {
       if (!game.user.isGM) {
         ui.notifications.warn("Seul le MJ peut modifier la timeline pour l'instant.");
         return;
@@ -130,7 +130,7 @@ class PlannerNarratifApp extends Application {
       this.render(false);
     });
 
-    html.find(".planner-chip-pool").on("contextmenu", async event => {
+    html.find(".narrative-hud-chip-pool").on("contextmenu", async event => {
       event.preventDefault();
 
       if (!game.user.isGM) return;
@@ -156,7 +156,7 @@ class PlannerNarratifApp extends Application {
       this.render(false);
     });
 
-    html.find(".planner-chip-timeline").on("contextmenu", async event => {
+    html.find(".narrative-hud-chip-timeline").on("contextmenu", async event => {
       event.preventDefault();
 
       if (!game.user.isGM) {
@@ -175,7 +175,7 @@ class PlannerNarratifApp extends Application {
       this.render(false);
     });
 
-    html.find(".planner-chip-timeline").on("click", async event => {
+    html.find(".narrative-hud-chip-timeline").on("click", async event => {
       if (event.detail !== 3) return;
 
       if (!game.user.isGM) {
@@ -198,43 +198,43 @@ class PlannerNarratifApp extends Application {
   }
 
   _activateDragAndDrop(html) {
-    html.find(".planner-chip-pool").attr("draggable", true);
-    html.find(".planner-chip-timeline").attr("draggable", true);
+    html.find(".narrative-hud-chip-pool").attr("draggable", true);
+    html.find(".narrative-hud-chip-timeline").attr("draggable", true);
 
-    html.find(".planner-chip-pool").on("dragstart", event => {
+    html.find(".narrative-hud-chip-pool").on("dragstart", event => {
       event.originalEvent.dataTransfer.setData("text/plain", JSON.stringify({
         source: "pool",
         id: event.currentTarget.dataset.id
       }));
 
-      event.currentTarget.classList.add("planner-dragging");
+      event.currentTarget.classList.add("narrative-hud-dragging");
     });
 
-    html.find(".planner-chip-timeline").on("dragstart", event => {
+    html.find(".narrative-hud-chip-timeline").on("dragstart", event => {
       event.originalEvent.dataTransfer.setData("text/plain", JSON.stringify({
         source: "timeline",
         index: Number(event.currentTarget.dataset.index)
       }));
 
-      event.currentTarget.classList.add("planner-dragging");
+      event.currentTarget.classList.add("narrative-hud-dragging");
     });
 
-    html.find(".planner-chip-pool, .planner-chip-timeline").on("dragend", event => {
-      event.currentTarget.classList.remove("planner-dragging");
+    html.find(".narrative-hud-chip-pool, .narrative-hud-chip-timeline").on("dragend", event => {
+      event.currentTarget.classList.remove("narrative-hud-dragging");
     });
 
-    html.find(".planner-timeline").on("dragover", event => {
+    html.find(".narrative-hud-timeline").on("dragover", event => {
       event.preventDefault();
     });
 
-    html.find(".planner-chip-timeline").on("dragover", event => {
+    html.find(".narrative-hud-chip-timeline").on("dragover", event => {
       event.preventDefault();
     });
 
-    html.find(".planner-timeline").on("drop", async event => {
+    html.find(".narrative-hud-timeline").on("drop", async event => {
       event.preventDefault();
 
-      if ($(event.target).closest(".planner-chip-timeline").length) return;
+      if ($(event.target).closest(".narrative-hud-chip-timeline").length) return;
 
       const data = this._readDragData(event);
       if (!data) return;
@@ -256,7 +256,7 @@ class PlannerNarratifApp extends Application {
       }
     });
 
-    html.find(".planner-chip-timeline").on("drop", async event => {
+    html.find(".narrative-hud-chip-timeline").on("drop", async event => {
       event.preventDefault();
 
       const data = this._readDragData(event);
@@ -325,7 +325,7 @@ class PlannerNarratifApp extends Application {
 
   async _openCreateDialog() {
     const content = `
-      <form class="planner-create-form">
+      <form class="narrative-hud-create-form">
         <div class="form-group">
           <label>Nom de base</label>
           <input type="text" name="name" placeholder="Bandit" />
@@ -360,7 +360,7 @@ class PlannerNarratifApp extends Application {
         create: {
           label: "Créer",
           callback: async html => {
-            const form = html.find(".planner-create-form")[0];
+            const form = html.find(".narrative-hud-create-form")[0];
             const data = new FormData(form);
 
             const baseName = String(data.get("name") ?? "").trim();
@@ -400,11 +400,11 @@ class PlannerNarratifApp extends Application {
 
   _renderChip(item, zone, index = null) {
     const indexAttr = index === null ? "" : `data-index="${index}"`;
-    const playedClass = item.played ? "planner-chip-played" : "";
+    const playedClass = item.played ? "narrative-hud-chip-played" : "";
 
     return `
       <button
-        class="planner-chip planner-chip-${item.type} planner-chip-${zone} ${playedClass}"
+        class="narrative-hud-chip narrative-hud-chip-${item.type} narrative-hud-chip-${zone} ${playedClass}"
         title="${item.name}"
         type="button"
         data-id="${item.id}"
@@ -427,7 +427,7 @@ class PlannerNarratifApp extends Application {
       });
     }
 
-    plannerApp = null;
+    narrativeHudApp = null;
     return super.close(options);
   }
 }
@@ -468,13 +468,13 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("ready", () => {
-  console.log("Planner Narratif | Ready V0.24");
+  console.log("Narrative HUD | Ready V0.25");
 
-  document.getElementById("planner-narratif-launcher")?.remove();
+  document.getElementById("narrative-hud-launcher")?.remove();
 
   const button = document.createElement("button");
-  button.id = "planner-narratif-launcher";
-  button.title = "Planner Narratif";
+  button.id = "narrative-hud-launcher";
+  button.title = "Narrative HUD";
   button.innerText = "⚔";
 
   const savedPosition = game.settings.get(MODULE_ID, "launcherPosition");
@@ -546,13 +546,13 @@ Hooks.once("ready", () => {
 
     if (hasMoved) return;
 
-    if (plannerApp?.rendered) {
-      plannerApp.close();
+    if (narrativeHudApp?.rendered) {
+      narrativeHudApp.close();
       return;
     }
 
-    plannerApp = new PlannerNarratifApp();
-    plannerApp.render(true);
+    narrativeHudApp = new NarrativeHudApp();
+    narrativeHudApp.render(true);
   });
 
   document.body.appendChild(button);
