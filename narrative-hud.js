@@ -4,7 +4,7 @@ const LAUNCHER_DEFAULT_POSITION = {
   bottom: "274px"
 };
 
-let narrativeHudApp = null;
+let narrativeHudOverlay = null;
 
 function getPool() {
   return game.settings.get(MODULE_ID, "pool") ?? [];
@@ -39,41 +39,31 @@ function isCombatMode() {
   return getViewMode() === "combat";
 }
 
-class NarrativeHudApp extends Application {
-  static get defaultOptions() {
-    const saved = game.settings.get(MODULE_ID, "windowState") ?? {};
-
-    return foundry.utils.mergeObject(super.defaultOptions, {
-      id: "narrative-hud-window",
-      title: "Narrative HUD",
-      width: saved.width ?? 720,
-      height: saved.height ?? 260,
-      top: saved.top ?? 120,
-      left: saved.left ?? 320,
-      resizable: true
-    });
+class NarrativeHudOverlay {
+  get rendered() {
+    return Boolean(document.getElementById("narrative-hud-overlay"));
   }
 
-  async _renderInner() {
+  render() {
+    document.getElementById("narrative-hud-overlay")?.remove();
+
+    const html = this._renderInner();
+    document.body.appendChild(html[0]);
+    this.activateListeners(html);
+  }
+
+  close() {
+    document.getElementById("narrative-hud-overlay")?.remove();
+    narrativeHudOverlay = null;
+  }
+
+  _renderInner() {
     const mode = getViewMode();
-    const modeLabel = mode === "combat" ? "⚔ Combat" : "🕯 Intrigue";
 
     return $(`
-      <section class="narrative-hud-shell">
-        <header class="narrative-hud-header">
-          <div class="narrative-hud-header-spacer"></div>
-          <div class="narrative-hud-header-actions">
-            <button type="button" class="narrative-hud-mode-toggle">${modeLabel}</button>
-            <button type="button" class="narrative-hud-refresh">↻ Actualiser</button>
-            ${game.user.isGM ? `<button type="button" class="narrative-hud-add">+ Ajouter</button>` : ""}
-            ${game.user.isGM ? `<button type="button" class="narrative-hud-new-turn">Nouveau Tour</button>` : ""}
-            ${game.user.isGM ? `<button type="button" class="narrative-hud-clear">Vider Timeline</button>` : ""}
-            <span>V0.26</span>
-          </div>
-        </header>
-
+      <div id="narrative-hud-overlay" class="narrative-hud-overlay-${mode}">
         ${isIntrigueMode() ? this._renderIntrigueView() : this._renderCombatView()}
-      </section>
+      </div>
     `);
   }
 
@@ -81,11 +71,15 @@ class NarrativeHudApp extends Application {
     const players = getPool().filter(item => item.type === "player");
 
     return `
-      <main class="narrative-hud-body">
+      <section class="narrative-hud-intrigue-panel">
         <div class="narrative-hud-intrigue-bar">
           ${players.map(item => this._renderHudCard(item)).join("")}
         </div>
-      </main>
+        <div class="narrative-hud-intrigue-controls">
+          ${this._renderModeToggle()}
+          <button type="button" class="narrative-hud-refresh">&#8635;</button>
+        </div>
+      </section>
     `;
   }
 
@@ -94,33 +88,42 @@ class NarrativeHudApp extends Application {
     const timeline = getTimeline();
 
     return `
-      <main class="narrative-hud-body">
-        <section class="narrative-hud-section">
-          <h3>POOL</h3>
-          <div class="narrative-hud-pool">
-            ${pool.map(item => this._renderChip(item, "pool")).join("")}
-          </div>
-        </section>
-
-        <section class="narrative-hud-section">
-          <h3>TIMELINE</h3>
+      <section class="narrative-hud-combat-timeline-panel">
+        <div class="narrative-hud-combat-actions">
+          ${game.user.isGM ? `<button type="button" class="narrative-hud-new-turn">Nouveau Tour</button>` : ""}
+          ${game.user.isGM ? `<button type="button" class="narrative-hud-clear">Vider Timeline</button>` : ""}
+          <button type="button" class="narrative-hud-refresh">&#8635;</button>
+        </div>
+        <div class="narrative-hud-combat-track">
           <div class="narrative-hud-timeline">
             ${timeline.map((item, index) => this._renderChip(item, "timeline", index)).join("")}
           </div>
-        </section>
-      </main>
+        </div>
+        <span class="narrative-hud-version">V0.27</span>
+      </section>
+
+      <aside class="narrative-hud-combat-pool-panel">
+        <div class="narrative-hud-pool-header">
+          <span>POOL</span>
+          ${game.user.isGM ? `<button type="button" class="narrative-hud-add">+ Ajouter</button>` : ""}
+        </div>
+        <div class="narrative-hud-pool">
+          ${pool.map(item => this._renderChip(item, "pool")).join("")}
+        </div>
+        <div class="narrative-hud-combat-mode-control">
+          ${this._renderModeToggle()}
+        </div>
+      </aside>
     `;
   }
 
   activateListeners(html) {
-    super.activateListeners(html);
-
     html.find(".narrative-hud-mode-toggle").on("click", async () => {
       await setViewMode(isCombatMode() ? "intrigue" : "combat");
-      this.render(false);
+      this.render();
     });
 
-    html.find(".narrative-hud-refresh").on("click", () => this.render(false));
+    html.find(".narrative-hud-refresh").on("click", () => this.render());
 
     html.find(".narrative-hud-add").on("click", () => {
       if (!game.user.isGM) return;
@@ -132,7 +135,7 @@ class NarrativeHudApp extends Application {
 
       const timeline = getTimeline().map(item => ({ ...item, played: false }));
       await setTimeline(timeline);
-      this.render(false);
+      this.render();
     });
 
     html.find(".narrative-hud-clear").on("click", async () => {
@@ -149,7 +152,7 @@ class NarrativeHudApp extends Application {
       if (!confirmClear) return;
 
       await setTimeline([]);
-      this.render(false);
+      this.render();
     });
 
     html.find(".narrative-hud-chip-pool").on("dblclick", async event => {
@@ -171,7 +174,7 @@ class NarrativeHudApp extends Application {
       });
 
       await setTimeline(timeline);
-      this.render(false);
+      this.render();
     });
 
     html.find(".narrative-hud-chip-pool").on("contextmenu", async event => {
@@ -197,7 +200,7 @@ class NarrativeHudApp extends Application {
       await setPool(pool.filter(p => p.id !== id));
       await setTimeline(getTimeline().filter(t => t.id !== id));
 
-      this.render(false);
+      this.render();
     });
 
     html.find(".narrative-hud-chip-timeline").on("contextmenu", async event => {
@@ -216,7 +219,7 @@ class NarrativeHudApp extends Application {
       timeline[index].played = !timeline[index].played;
 
       await setTimeline(timeline);
-      this.render(false);
+      this.render();
     });
 
     html.find(".narrative-hud-chip-timeline").on("click", async event => {
@@ -235,7 +238,7 @@ class NarrativeHudApp extends Application {
       timeline.splice(index, 1);
 
       await setTimeline(timeline);
-      this.render(false);
+      this.render();
     });
 
     if (game.user.isGM) this._activateDragAndDrop(html);
@@ -296,7 +299,7 @@ class NarrativeHudApp extends Application {
         });
 
         await setTimeline(timeline);
-        this.render(false);
+        this.render();
       }
     });
 
@@ -328,7 +331,7 @@ class NarrativeHudApp extends Application {
         }
 
         await setTimeline(timeline);
-        this.render(false);
+        this.render();
         return;
       }
 
@@ -354,7 +357,7 @@ class NarrativeHudApp extends Application {
         timeline.splice(insertIndex, 0, moved);
 
         await setTimeline(timeline);
-        this.render(false);
+        this.render();
       }
     });
   }
@@ -431,7 +434,7 @@ class NarrativeHudApp extends Application {
             }
 
             await setPool(pool);
-            this.render(false);
+            this.render();
           }
         },
         cancel: {
@@ -470,20 +473,10 @@ class NarrativeHudApp extends Application {
     `;
   }
 
-  async close(options = {}) {
-    const el = this.element?.[0];
+  _renderModeToggle() {
+    const modeLabel = isCombatMode() ? "&#9876; Combat" : "&#128367; Intrigue";
 
-    if (el) {
-      await game.settings.set(MODULE_ID, "windowState", {
-        left: el.offsetLeft,
-        top: el.offsetTop,
-        width: el.offsetWidth,
-        height: el.offsetHeight
-      });
-    }
-
-    narrativeHudApp = null;
-    return super.close(options);
+    return `<button type="button" class="narrative-hud-mode-toggle">${modeLabel}</button>`;
   }
 }
 
@@ -493,18 +486,6 @@ Hooks.once("init", () => {
     config: false,
     type: Object,
     default: LAUNCHER_DEFAULT_POSITION
-  });
-
-  game.settings.register(MODULE_ID, "windowState", {
-    scope: "client",
-    config: false,
-    type: Object,
-    default: {
-      left: 320,
-      top: 120,
-      width: 720,
-      height: 260
-    }
   });
 
   game.settings.register(MODULE_ID, "viewMode", {
@@ -534,14 +515,14 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("ready", () => {
-  console.log("Narrative HUD | Ready V0.26");
+  console.log("Narrative HUD | Ready V0.27");
 
   document.getElementById("narrative-hud-launcher")?.remove();
 
   const button = document.createElement("button");
   button.id = "narrative-hud-launcher";
   button.title = "Narrative HUD";
-  button.innerText = "⚔";
+  button.innerText = "\u2694";
 
   const savedPosition = game.settings.get(MODULE_ID, "launcherPosition");
 
@@ -606,19 +587,19 @@ Hooks.once("ready", () => {
     document.addEventListener("mouseup", onMouseUp, { once: true });
   });
 
-  button.addEventListener("dblclick", event => {
+  button.addEventListener("click", event => {
     event.preventDefault();
     event.stopPropagation();
 
     if (hasMoved) return;
 
-    if (narrativeHudApp?.rendered) {
-      narrativeHudApp.close();
+    if (narrativeHudOverlay?.rendered) {
+      narrativeHudOverlay.close();
       return;
     }
 
-    narrativeHudApp = new NarrativeHudApp();
-    narrativeHudApp.render(true);
+    narrativeHudOverlay = new NarrativeHudOverlay();
+    narrativeHudOverlay.render();
   });
 
   document.body.appendChild(button);
