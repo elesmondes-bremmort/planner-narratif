@@ -14,8 +14,8 @@ function getViewMode() {
   return game.settings.get(MODULE_ID, "viewMode") ?? "intrigue";
 }
 
-function getIntrigueHidden() {
-  return game.settings.get(MODULE_ID, "intrigueHidden") ?? {};
+function getIntrigueVisiblePlayers() {
+  return game.settings.get(MODULE_ID, "intrigueVisiblePlayers") ?? {};
 }
 
 async function setPool(pool) {
@@ -31,8 +31,8 @@ async function setViewMode(mode) {
   await game.settings.set(MODULE_ID, "viewMode", nextMode);
 }
 
-async function setIntrigueHidden(hidden) {
-  await game.settings.set(MODULE_ID, "intrigueHidden", hidden);
+async function setIntrigueVisiblePlayers(visiblePlayers) {
+  await game.settings.set(MODULE_ID, "intrigueVisiblePlayers", visiblePlayers);
 }
 
 function isIntrigueMode() {
@@ -44,6 +44,11 @@ function isCombatMode() {
 }
 
 class NarrativeHudOverlay {
+  constructor() {
+    this.showProtagonistsPanel = false;
+    this.isDraggingPoolEntity = false;
+  }
+
   get rendered() {
     return Boolean(document.getElementById("narrative-hud-overlay"));
   }
@@ -74,20 +79,25 @@ class NarrativeHudOverlay {
 
   _renderIntrigueView() {
     const players = getPool().filter(item => item.type === "player");
-    const hidden = getIntrigueHidden();
+    const visiblePlayers = getIntrigueVisiblePlayers();
+    const visiblePlayerItems = players.filter(item => visiblePlayers[item.id] !== false);
 
     return `
       <section class="narrative-hud-intrigue-panel">
         <div class="narrative-hud-intrigue-bar">
-          ${players.map(item => this._renderHudCard(item, {
+          ${visiblePlayerItems.length
+            ? visiblePlayerItems.map(item => this._renderHudCard(item, {
             mode: "intrigue",
-            hidden: Boolean(hidden[item.id])
-          })).join("")}
+            visible: true
+          })).join("")
+            : `<div class="narrative-hud-empty">Aucun protagoniste affich&eacute;.</div>`}
         </div>
         <div class="narrative-hud-intrigue-controls">
           ${this._renderModeToggle()}
+          <button type="button" class="narrative-hud-protagonists-toggle">Protagonistes</button>
           <button type="button" class="narrative-hud-refresh">&#8635;</button>
         </div>
+        ${this.showProtagonistsPanel ? this._renderProtagonistsPanel(players, visiblePlayers) : ""}
       </section>
     `;
   }
@@ -111,7 +121,7 @@ class NarrativeHudOverlay {
           ${game.user.isGM ? `<button type="button" class="narrative-hud-clear">Vider Timeline</button>` : ""}
           <button type="button" class="narrative-hud-refresh">&#8635;</button>
         </div>
-        <span class="narrative-hud-version">V0.29</span>
+        <span class="narrative-hud-version">V0.30</span>
       </section>
 
       <aside class="narrative-hud-combat-pool-panel">
@@ -146,16 +156,17 @@ class NarrativeHudOverlay {
     html.find(".narrative-hud-add-slot").on("click", async () => {
       if (!game.user.isGM) return;
 
-      const pool = getPool();
-      const nextSlotNumber = pool.filter(item => item.type === "slot").length + 1;
-      pool.push({
+      const timeline = getTimeline();
+      timeline.push({
         id: foundry.utils.randomID(),
-        name: `Slot Joueur ${nextSlotNumber}`,
-        label: `S${nextSlotNumber}`,
-        type: "slot"
+        occurrenceId: foundry.utils.randomID(),
+        name: "Slot Joueur",
+        label: "J",
+        type: "slot",
+        played: false
       });
 
-      await setPool(pool);
+      await setTimeline(timeline);
       this.render();
     });
 
@@ -184,7 +195,9 @@ class NarrativeHudOverlay {
       this.render();
     });
 
-    html.find(".narrative-hud-pool-entity").on("dblclick", async event => {
+    html.find(".narrative-hud-pool-entity").on("click", async event => {
+      if (this.isDraggingPoolEntity) return;
+
       if (!game.user.isGM) {
         ui.notifications.warn("Seul le MJ peut modifier la timeline pour l'instant.");
         return;
@@ -196,7 +209,7 @@ class NarrativeHudOverlay {
 
       const timeline = getTimeline();
 
-      timeline.push({
+      timeline.unshift({
         ...item,
         occurrenceId: foundry.utils.randomID(),
         played: false
@@ -232,14 +245,23 @@ class NarrativeHudOverlay {
       this.render();
     });
 
-    html.find(".narrative-hud-card-intrigue").on("click", async event => {
+    html.find(".narrative-hud-protagonists-toggle").on("click", () => {
+      this.showProtagonistsPanel = !this.showProtagonistsPanel;
+      this.render();
+    });
+
+    html.find(".narrative-hud-protagonist-checkbox").on("change", async event => {
       const id = event.currentTarget.dataset.id;
-      const hidden = { ...getIntrigueHidden() };
+      const visiblePlayers = { ...getIntrigueVisiblePlayers() };
 
-      hidden[id] = !hidden[id];
-      if (!hidden[id]) delete hidden[id];
+      if (event.currentTarget.checked) {
+        delete visiblePlayers[id];
+      } else {
+        visiblePlayers[id] = false;
+      }
 
-      await setIntrigueHidden(hidden);
+      await setIntrigueVisiblePlayers(visiblePlayers);
+      this.showProtagonistsPanel = true;
       this.render();
     });
 
@@ -289,6 +311,8 @@ class NarrativeHudOverlay {
     html.find(".narrative-hud-chip-timeline").attr("draggable", true);
 
     html.find(".narrative-hud-pool-entity").on("dragstart", event => {
+      this.isDraggingPoolEntity = true;
+
       event.originalEvent.dataTransfer.setData("text/plain", JSON.stringify({
         source: "pool",
         id: event.currentTarget.dataset.id
@@ -308,6 +332,9 @@ class NarrativeHudOverlay {
 
     html.find(".narrative-hud-pool-entity, .narrative-hud-chip-timeline").on("dragend", event => {
       event.currentTarget.classList.remove("narrative-hud-dragging");
+      window.setTimeout(() => {
+        this.isDraggingPoolEntity = false;
+      }, 100);
     });
 
     html.find(".narrative-hud-timeline").on("dragover", event => {
@@ -451,7 +478,6 @@ class NarrativeHudOverlay {
             <option value="player">PJ</option>
             <option value="npc">Alli&eacute;</option>
             <option value="monster">Ennemi</option>
-            <option value="slot">Slot</option>
           </select>
         </div>
 
@@ -530,22 +556,18 @@ class NarrativeHudOverlay {
     const label = String(item.label ?? item.name?.[0] ?? "?").trim().slice(0, 3).toUpperCase();
     const mode = options.mode ?? "intrigue";
     const typeLabel = this._getTypeLabel(item.type);
-    const hiddenClass = options.hidden ? "narrative-hud-card-hidden" : "";
     const activeClass = options.active ? "narrative-hud-active" : "";
     const poolClass = mode === "combat" ? "narrative-hud-pool-entity" : "";
 
     if (mode === "intrigue") {
       return `
         <article
-          class="narrative-hud-card narrative-hud-card-intrigue narrative-hud-card-${item.type} ${hiddenClass}"
+          class="narrative-hud-card narrative-hud-card-intrigue narrative-hud-card-${item.type}"
           title="${item.name}"
           data-id="${item.id}"
         >
-          ${options.hidden ? "" : `<div class="narrative-hud-card-portrait">${label}</div>`}
-          <button type="button" class="narrative-hud-card-name">
-            <span class="narrative-hud-card-visibility">${options.hidden ? "&#9675;" : "&#9679;"}</span>
-            ${item.name}
-          </button>
+          <div class="narrative-hud-card-portrait">${label}</div>
+          <div class="narrative-hud-card-name">${item.name}</div>
         </article>
       `;
     }
@@ -563,6 +585,24 @@ class NarrativeHudOverlay {
           <div class="narrative-hud-card-statuses">Statuts</div>
         </div>
       </article>
+    `;
+  }
+
+  _renderProtagonistsPanel(players, visiblePlayers) {
+    return `
+      <div class="narrative-hud-protagonists-panel">
+        ${players.map(item => `
+          <label class="narrative-hud-protagonist-row">
+            <input
+              type="checkbox"
+              class="narrative-hud-protagonist-checkbox"
+              data-id="${item.id}"
+              ${visiblePlayers[item.id] === false ? "" : "checked"}
+            />
+            <span>${item.name}</span>
+          </label>
+        `).join("")}
+      </div>
     `;
   }
 
@@ -613,11 +653,10 @@ class NarrativeHudOverlay {
     const order = {
       player: 0,
       npc: 1,
-      monster: 2,
-      slot: 3
+      monster: 2
     };
 
-    return [...pool].sort((a, b) => {
+    return pool.filter(item => item.type in order).sort((a, b) => {
       const typeOrder = (order[a.type] ?? 99) - (order[b.type] ?? 99);
       if (typeOrder !== 0) return typeOrder;
       return String(a.name ?? "").localeCompare(String(b.name ?? ""));
@@ -637,7 +676,7 @@ Hooks.once("init", () => {
     }
   });
 
-  game.settings.register(MODULE_ID, "intrigueHidden", {
+  game.settings.register(MODULE_ID, "intrigueVisiblePlayers", {
     scope: "client",
     config: false,
     type: Object,
@@ -660,7 +699,7 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("ready", () => {
-  console.log("Narrative HUD | Ready V0.29");
+  console.log("Narrative HUD | Ready V0.30");
 
   window.addEventListener("resize", () => {
     narrativeHudOverlay?._positionCombatPoolPanel();
