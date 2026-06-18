@@ -127,7 +127,7 @@ class NarrativeHudOverlay {
           ${game.user.isGM ? `<button type="button" class="narrative-hud-clear">Vider Timeline</button>` : ""}
           <button type="button" class="narrative-hud-refresh">&#8635;</button>
         </div>
-        <span class="narrative-hud-version">V0.31</span>
+        <span class="narrative-hud-version">V0.33</span>
       </section>
 
       ${this._renderActivePortrait(activeItem)}
@@ -185,7 +185,19 @@ class NarrativeHudOverlay {
     html.find(".narrative-hud-new-turn").on("click", async () => {
       if (!game.user.isGM) return;
 
-      const timeline = getTimeline().map(item => ({ ...item, played: false }));
+      const timeline = getTimeline().map(item => {
+        if (item.type !== "player") return { ...item, played: false };
+
+        return {
+          id: foundry.utils.randomID(),
+          occurrenceId: foundry.utils.randomID(),
+          name: "Slot Joueur",
+          label: "J",
+          type: "slot",
+          played: false
+        };
+      });
+
       await setTimeline(timeline);
       this.render();
     });
@@ -553,12 +565,12 @@ class NarrativeHudOverlay {
     const gapRight = panelRect.left - 12;
     const availableWidth = gapRight - gapLeft;
 
-    if (availableWidth < 96) {
+    if (availableWidth < 160) {
       activePortrait.style.display = "none";
       return;
     }
 
-    const width = Math.min(132, availableWidth);
+    const width = Math.min(240, availableWidth);
     activePortrait.style.display = "flex";
     activePortrait.style.width = `${width}px`;
     activePortrait.style.left = `${gapRight - width}px`;
@@ -692,9 +704,9 @@ class NarrativeHudOverlay {
           ${this._renderHudCardDetails(item)}
         </div>
         <div class="narrative-hud-card-statuses">
-          <span></span>
-          <span></span>
-          <span></span>
+          <span>&#9760;</span>
+          <span>&#129656;</span>
+          <span>&#129460;</span>
         </div>
       </article>
     `;
@@ -830,7 +842,7 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("ready", () => {
-  console.log("Narrative HUD | Ready V0.31");
+  console.log("Narrative HUD | Ready V0.33");
 
   window.addEventListener("resize", () => {
     narrativeHudOverlay?._positionCombatPoolPanel();

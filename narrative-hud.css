@@ -210,9 +210,9 @@
 
 .narrative-hud-card-combat {
   width: 100%;
-  min-height: 112px;
+  min-height: 128px;
   display: grid;
-  grid-template-columns: 3fr 2fr 1fr;
+  grid-template-columns: 45% 38% 17%;
   align-items: stretch;
   padding: 10px;
 }
@@ -243,8 +243,8 @@
 }
 
 .narrative-hud-card-combat .narrative-hud-card-portrait {
-  width: 68px;
-  height: 68px;
+  width: 78px;
+  height: 78px;
 }
 
 .narrative-hud-card-name {
@@ -282,9 +282,9 @@
 }
 
 .narrative-hud-card-lines {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 5px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
   color: #f0d8a8;
   font-size: 12px;
   line-height: 1.2;
@@ -307,19 +307,18 @@
 
 .narrative-hud-card-statuses {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
   border-left: 1px solid rgba(240, 216, 168, 0.12);
 }
 
 .narrative-hud-card-statuses span {
-  width: 12px;
-  height: 12px;
-  border: 1px solid rgba(240, 216, 168, 0.28);
-  border-radius: 50%;
-  opacity: 0.65;
+  color: rgba(240, 216, 168, 0.72);
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0.78;
 }
 
 .narrative-hud-pool-entity {
@@ -399,7 +398,7 @@
   flex-direction: column;
   align-items: center;
   gap: 7px;
-  padding: 8px;
+  padding: 10px;
   border: 1px solid rgba(240, 216, 168, 0.42);
   border-radius: 8px;
   background: rgba(14, 10, 7, 0.66);
@@ -407,8 +406,8 @@
 }
 
 .narrative-hud-active-portrait-circle {
-  width: 76px;
-  height: 76px;
+  width: 156px;
+  height: 156px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -417,7 +416,7 @@
   background: radial-gradient(circle, rgba(72, 49, 22, 0.92), rgba(15, 10, 7, 0.94));
   box-shadow: 0 0 14px rgba(240, 154, 74, 0.28), inset 0 0 10px rgba(240, 216, 168, 0.13);
   color: #f5ddb0;
-  font-size: 18px;
+  font-size: 26px;
   font-weight: 700;
 }
 
