@@ -47,6 +47,8 @@ class NarrativeHudOverlay {
   constructor() {
     this.showProtagonistsPanel = false;
     this.isDraggingPoolEntity = false;
+    this.lastActiveKey = null;
+    this.scrollTimelineLeftAfterRender = false;
   }
 
   get rendered() {
@@ -60,6 +62,8 @@ class NarrativeHudOverlay {
     document.body.appendChild(html[0]);
     this.activateListeners(html);
     this._positionCombatPoolPanel();
+    this._scrollTimelineLeftIfNeeded();
+    this._scrollActiveCardIfChanged();
   }
 
   close() {
@@ -106,7 +110,7 @@ class NarrativeHudOverlay {
     const pool = getPool();
     const timeline = getTimeline();
     const activeItem = timeline.find(item => item.played !== true);
-    const activeId = activeItem?.id ?? null;
+    const activeKey = this._getTimelineItemKey(activeItem);
     const orderedPool = this._getCombatOrderedPool(pool);
 
     return `
@@ -117,14 +121,17 @@ class NarrativeHudOverlay {
           </div>
         </div>
         <div class="narrative-hud-combat-actions">
+          <button type="button" class="narrative-hud-previous-turn">Previous</button>
+          <button type="button" class="narrative-hud-next-turn">Next</button>
           ${game.user.isGM ? `<button type="button" class="narrative-hud-new-turn">Nouveau Tour</button>` : ""}
           ${game.user.isGM ? `<button type="button" class="narrative-hud-clear">Vider Timeline</button>` : ""}
           <button type="button" class="narrative-hud-refresh">&#8635;</button>
         </div>
-        <span class="narrative-hud-version">V0.30</span>
+        <span class="narrative-hud-version">V0.31</span>
       </section>
 
       <aside class="narrative-hud-combat-pool-panel">
+        ${this._renderActivePortrait(activeItem)}
         <div class="narrative-hud-pool-header">
           ${game.user.isGM ? `<button type="button" class="narrative-hud-add">+ Ajouter</button>` : ""}
           ${game.user.isGM ? `<button type="button" class="narrative-hud-add-slot">+ Slot Joueur</button>` : ""}
@@ -133,7 +140,7 @@ class NarrativeHudOverlay {
         <div class="narrative-hud-pool">
           ${orderedPool.map(item => this._renderHudCard(item, {
             mode: "combat",
-            active: activeId && item.id === activeId
+            active: activeKey && item.id === activeItem?.id
           })).join("")}
         </div>
       </aside>
@@ -157,7 +164,7 @@ class NarrativeHudOverlay {
       if (!game.user.isGM) return;
 
       const timeline = getTimeline();
-      timeline.push({
+      timeline.unshift({
         id: foundry.utils.randomID(),
         occurrenceId: foundry.utils.randomID(),
         name: "Slot Joueur",
@@ -167,8 +174,12 @@ class NarrativeHudOverlay {
       });
 
       await setTimeline(timeline);
+      this.scrollTimelineLeftAfterRender = true;
       this.render();
     });
+
+    html.find(".narrative-hud-next-turn").on("click", () => this.nextTurn());
+    html.find(".narrative-hud-previous-turn").on("click", () => this.previousTurn());
 
     html.find(".narrative-hud-new-turn").on("click", async () => {
       if (!game.user.isGM) return;
@@ -216,6 +227,7 @@ class NarrativeHudOverlay {
       });
 
       await setTimeline(timeline);
+      this.scrollTimelineLeftAfterRender = true;
       this.render();
     });
 
@@ -262,6 +274,14 @@ class NarrativeHudOverlay {
 
       await setIntrigueVisiblePlayers(visiblePlayers);
       this.showProtagonistsPanel = true;
+      this.render();
+    });
+
+    html.find(".narrative-hud-card-intrigue").on("dblclick", async event => {
+      const id = event.currentTarget.dataset.id;
+      const visiblePlayers = { ...getIntrigueVisiblePlayers(), [id]: false };
+
+      await setIntrigueVisiblePlayers(visiblePlayers);
       this.render();
     });
 
@@ -359,13 +379,14 @@ class NarrativeHudOverlay {
         const item = getPool().find(p => p.id === data.id);
         if (!item) return;
 
-        timeline.push({
+        timeline.unshift({
           ...item,
           occurrenceId: foundry.utils.randomID(),
           played: false
         });
 
         await setTimeline(timeline);
+        this.scrollTimelineLeftAfterRender = true;
         this.render();
       }
     });
@@ -435,6 +456,69 @@ class NarrativeHudOverlay {
     } catch {
       return null;
     }
+  }
+
+  async nextTurn() {
+    if (!game.user.isGM) {
+      ui.notifications.warn("Seul le MJ peut modifier la timeline pour l'instant.");
+      return;
+    }
+
+    const timeline = getTimeline();
+    const index = timeline.findIndex(item => item.played !== true);
+
+    if (index === -1) return;
+
+    timeline[index].played = true;
+    await setTimeline(timeline);
+    this.render();
+  }
+
+  async previousTurn() {
+    if (!game.user.isGM) {
+      ui.notifications.warn("Seul le MJ peut modifier la timeline pour l'instant.");
+      return;
+    }
+
+    const timeline = getTimeline();
+    let index = -1;
+
+    for (let i = timeline.length - 1; i >= 0; i--) {
+      if (timeline[i].played === true) {
+        index = i;
+        break;
+      }
+    }
+
+    if (index === -1) return;
+
+    timeline[index].played = false;
+    await setTimeline(timeline);
+    this.render();
+  }
+
+  _scrollTimelineLeftIfNeeded() {
+    if (!this.scrollTimelineLeftAfterRender) return;
+
+    const timeline = document.querySelector(".narrative-hud-timeline");
+    timeline?.scrollTo({ left: 0, behavior: "smooth" });
+    this.scrollTimelineLeftAfterRender = false;
+  }
+
+  _scrollActiveCardIfChanged() {
+    if (!isCombatMode()) return;
+
+    const activeItem = getTimeline().find(item => item.played !== true);
+    const activeKey = this._getTimelineItemKey(activeItem);
+
+    if (!activeKey || activeKey === this.lastActiveKey) return;
+
+    document.querySelector(".narrative-hud-active")?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest"
+    });
+
+    this.lastActiveKey = activeKey;
   }
 
   _positionCombatPoolPanel() {
@@ -578,13 +662,28 @@ class NarrativeHudOverlay {
         title="${typeLabel} - ${item.name}"
         data-id="${item.id}"
       >
-        <div class="narrative-hud-card-portrait"></div>
-        <div class="narrative-hud-card-content">
+        <div class="narrative-hud-card-portrait-wrap">
+          <div class="narrative-hud-card-portrait"></div>
+        </div>
+        <div class="narrative-hud-card-stats">
           <div class="narrative-hud-card-name">${item.name}</div>
           ${this._renderHudCardDetails(item)}
-          <div class="narrative-hud-card-statuses">Statuts</div>
+        </div>
+        <div class="narrative-hud-card-statuses">
+          <span></span>
         </div>
       </article>
+    `;
+  }
+
+  _renderActivePortrait(activeItem) {
+    const label = String(activeItem?.label ?? activeItem?.name?.[0] ?? "?").trim().slice(0, 3).toUpperCase();
+
+    return `
+      <div class="narrative-hud-active-portrait">
+        <div class="narrative-hud-active-portrait-circle">${activeItem ? label : ""}</div>
+        <div class="narrative-hud-active-portrait-name">${activeItem?.name ?? "Aucun tour actif"}</div>
+      </div>
     `;
   }
 
@@ -610,9 +709,11 @@ class NarrativeHudOverlay {
     if (item.type === "player") {
       return `
         <div class="narrative-hud-card-lines">
-          <div>&#10084;&#65039; 25/30</div>
-          <div>&#128154; 12/20</div>
-          <div>&#128153; 8/12</div>
+          <div>&#10084;&#65039; Vitalit&eacute; 25/30</div>
+          <div>&#128154; Endurance 12/20</div>
+          <div>&#128153; Maestra 8/12</div>
+          <div>&#9889; Fulgurance 3</div>
+          <div>&#128737; Protection 2</div>
         </div>
       `;
     }
@@ -630,6 +731,7 @@ class NarrativeHudOverlay {
     return `
       <div class="narrative-hud-card-lines">
         <div>&#129656; Blessures : ${wounds}</div>
+        <div>&#128737; Protection 1</div>
       </div>
     `;
   }
@@ -647,6 +749,11 @@ class NarrativeHudOverlay {
       monster: "Ennemi",
       slot: "Slot"
     }[type] ?? type;
+  }
+
+  _getTimelineItemKey(item) {
+    if (!item) return null;
+    return item.occurrenceId ?? item.id ?? null;
   }
 
   _getCombatOrderedPool(pool) {
@@ -699,7 +806,7 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("ready", () => {
-  console.log("Narrative HUD | Ready V0.30");
+  console.log("Narrative HUD | Ready V0.31");
 
   window.addEventListener("resize", () => {
     narrativeHudOverlay?._positionCombatPoolPanel();
@@ -708,4 +815,9 @@ Hooks.once("ready", () => {
 
   narrativeHudOverlay = new NarrativeHudOverlay();
   narrativeHudOverlay.render();
+
+  window.NarrativeHUD = {
+    nextTurn: () => narrativeHudOverlay?.nextTurn(),
+    previousTurn: () => narrativeHudOverlay?.previousTurn()
+  };
 });
