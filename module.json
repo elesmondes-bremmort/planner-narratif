@@ -2,7 +2,7 @@
   "id": "narrative-hud",
   "title": "Narrative HUD",
   "description": "Narrative HUD pour Foundry VTT",
-  "version": "0.0.35",
+  "version": "0.0.36",
   "socket": true,
   "authors": [
     {

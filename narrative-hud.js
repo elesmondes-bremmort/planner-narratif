@@ -49,6 +49,7 @@ class NarrativeHudOverlay {
     this.isDraggingPoolEntity = false;
     this.lastActiveKey = null;
     this.scrollTimelineLeftAfterRender = false;
+    this.scrollActiveTimelineAfterRender = false;
   }
 
   get rendered() {
@@ -62,8 +63,8 @@ class NarrativeHudOverlay {
     document.body.appendChild(html[0]);
     this.activateListeners(html);
     this._positionCombatPoolPanel();
-    this._scrollTimelineLeftIfNeeded();
-    this._scrollActiveCardIfChanged();
+    const scrolledToTimelineStart = this._scrollTimelineLeftIfNeeded();
+    this._scrollActiveCardIfChanged(!scrolledToTimelineStart);
   }
 
   close() {
@@ -110,6 +111,7 @@ class NarrativeHudOverlay {
     const pool = getPool();
     const timeline = getTimeline();
     const activeItem = timeline.find(item => item.played !== true);
+    const activeIndex = timeline.findIndex(item => item.played !== true);
     const activeKey = this._getTimelineItemKey(activeItem);
     const orderedPool = this._getCombatOrderedPool(pool);
 
@@ -117,7 +119,12 @@ class NarrativeHudOverlay {
       <section class="narrative-hud-combat-timeline-panel">
         <div class="narrative-hud-combat-track">
           <div class="narrative-hud-timeline">
-            ${timeline.map((item, index) => this._renderChip(item, "timeline", index)).join("")}
+            ${timeline.map((item, index) => this._renderChip(
+              item,
+              "timeline",
+              index,
+              index === activeIndex
+            )).join("")}
           </div>
         </div>
         <div class="narrative-hud-combat-actions">
@@ -127,7 +134,7 @@ class NarrativeHudOverlay {
           ${game.user.isGM ? `<button type="button" class="narrative-hud-clear">Vider Timeline</button>` : ""}
           <button type="button" class="narrative-hud-refresh">&#8635;</button>
         </div>
-        <span class="narrative-hud-version">V0.35</span>
+        <span class="narrative-hud-version">V0.36</span>
       </section>
 
       ${this._renderActivePortrait(activeItem)}
@@ -199,6 +206,7 @@ class NarrativeHudOverlay {
       });
 
       await setTimeline(timeline);
+      this.scrollActiveTimelineAfterRender = true;
       this.render();
     });
 
@@ -314,6 +322,7 @@ class NarrativeHudOverlay {
       timeline[index].played = !timeline[index].played;
 
       await setTimeline(timeline);
+      this.scrollActiveTimelineAfterRender = true;
       this.render();
     });
 
@@ -484,6 +493,7 @@ class NarrativeHudOverlay {
 
     timeline[index].played = true;
     await setTimeline(timeline);
+    this.scrollActiveTimelineAfterRender = true;
     this.render();
   }
 
@@ -507,31 +517,58 @@ class NarrativeHudOverlay {
 
     timeline[index].played = false;
     await setTimeline(timeline);
+    this.scrollActiveTimelineAfterRender = true;
     this.render();
   }
 
   _scrollTimelineLeftIfNeeded() {
-    if (!this.scrollTimelineLeftAfterRender) return;
+    if (!this.scrollTimelineLeftAfterRender) return false;
 
     const timeline = document.querySelector(".narrative-hud-timeline");
     timeline?.scrollTo({ left: 0, behavior: "smooth" });
     this.scrollTimelineLeftAfterRender = false;
+    return true;
   }
 
-  _scrollActiveCardIfChanged() {
+  _scrollActiveCardIfChanged(allowTimelineScroll = true) {
     if (!isCombatMode()) return;
 
     const activeItem = getTimeline().find(item => item.played !== true);
     const activeKey = this._getTimelineItemKey(activeItem);
+    const activeChanged = Boolean(activeKey && activeKey !== this.lastActiveKey);
+    const shouldScrollTimeline = allowTimelineScroll
+      && Boolean(activeKey)
+      && (activeChanged || this.scrollActiveTimelineAfterRender);
 
-    if (!activeKey || activeKey === this.lastActiveKey) return;
+    if (shouldScrollTimeline) this._scrollTimelineToActiveChip();
+    this.scrollActiveTimelineAfterRender = false;
 
-    document.querySelector(".narrative-hud-active")?.scrollIntoView({
-      behavior: "smooth",
-      block: "nearest"
-    });
+    if (activeChanged) {
+      document.querySelector(".narrative-hud-active")?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest"
+      });
+    }
 
     this.lastActiveKey = activeKey;
+  }
+
+  _scrollTimelineToActiveChip() {
+    const timeline = document.querySelector(".narrative-hud-timeline");
+    const activeChip = timeline?.querySelector(".narrative-hud-chip-active-turn");
+    if (!timeline || !activeChip) return;
+
+    const timelineRect = timeline.getBoundingClientRect();
+    const activeChipRect = activeChip.getBoundingClientRect();
+    const centeredLeft = timeline.scrollLeft
+      + activeChipRect.left
+      - timelineRect.left
+      + activeChipRect.width / 2
+      - timeline.clientWidth / 2;
+    const maximumLeft = Math.max(0, timeline.scrollWidth - timeline.clientWidth);
+    const targetLeft = Math.max(0, Math.min(maximumLeft, centeredLeft));
+
+    timeline.scrollTo({ left: targetLeft, behavior: "smooth" });
   }
 
   _positionCombatPoolPanel() {
@@ -744,14 +781,15 @@ class NarrativeHudOverlay {
     }).render(true);
   }
 
-  _renderChip(item, zone, index = null) {
+  _renderChip(item, zone, index = null, active = false) {
     const indexAttr = index === null ? "" : `data-index="${index}"`;
     const playedClass = item.played ? "narrative-hud-chip-played" : "";
+    const activeClass = active ? "narrative-hud-chip-active-turn" : "";
     const typeLabel = this._getTypeLabel(item.type);
 
     return `
       <button
-        class="narrative-hud-chip narrative-hud-chip-${item.type} narrative-hud-chip-${zone} ${playedClass}"
+        class="narrative-hud-chip narrative-hud-chip-${item.type} narrative-hud-chip-${zone} ${playedClass} ${activeClass}"
         title="${typeLabel} - ${item.name}"
         type="button"
         data-id="${item.id}"
@@ -935,7 +973,7 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("ready", () => {
-  console.log("Narrative HUD | Ready V0.35");
+  console.log("Narrative HUD | Ready V0.36");
 
   window.addEventListener("resize", () => {
     narrativeHudOverlay?._positionCombatPoolPanel();
