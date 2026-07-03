@@ -17,13 +17,14 @@
 
 .narrative-hud-intrigue-panel {
   position: absolute;
-  left: 50%;
+  left: 80px;
+  right: 80px;
   bottom: 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: clamp(5px, 0.5vw, 8px);
-  transform: translateX(-50%);
+  box-sizing: border-box;
 }
 
 .narrative-hud-intrigue-bar {
@@ -33,7 +34,7 @@
   align-items: flex-start;
   box-sizing: border-box;
   gap: clamp(8px, 0.75vw, 14px);
-  max-width: min(760px, calc(100vw - 160px));
+  max-width: min(760px, 100%);
   padding: clamp(8px, 0.65vw, 12px) clamp(10px, 0.85vw, 16px);
   border: 1px solid rgba(240, 154, 74, 0.38);
   border-radius: 8px;

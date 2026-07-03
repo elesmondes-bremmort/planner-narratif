@@ -70,7 +70,7 @@ class NarrativeHudOverlay {
     const html = this._renderInner();
     document.body.appendChild(html[0]);
     this.activateListeners(html);
-    this._positionCombatPoolPanel();
+    this._positionHudLayout();
     const scrolledToTimelineStart = this._scrollTimelineLeftIfNeeded();
     if (!scrolledToTimelineStart) {
       this._restoreTimelineScrollPosition(previousTimelineScrollLeft);
@@ -149,7 +149,7 @@ class NarrativeHudOverlay {
           ${game.user.isGM ? `<button type="button" class="narrative-hud-clear">Vider Timeline</button>` : ""}
           <button type="button" class="narrative-hud-refresh">&#8635;</button>
         </div>
-        <span class="narrative-hud-version">V0.37</span>
+        <span class="narrative-hud-version">V0.38</span>
       </section>
 
       ${this._renderActivePortrait(activeItem)}
@@ -627,39 +627,37 @@ class NarrativeHudOverlay {
     timeline.scrollTo({ left: targetLeft, behavior: "smooth" });
   }
 
-  _positionCombatPoolPanel() {
+  _positionHudLayout() {
+    if (isIntrigueMode()) {
+      this._positionIntriguePanel();
+      return;
+    }
+
+    this._positionCombatLayout();
+  }
+
+  _positionIntriguePanel() {
+    const intriguePanel = document.querySelector(".narrative-hud-intrigue-panel");
+    const intrigueBar = document.querySelector(".narrative-hud-intrigue-bar");
+    if (!intriguePanel) return;
+
+    const { safeLeft, safeRight, safeWidth } = this._getHudSafeArea();
+
+    intriguePanel.style.left = `${safeLeft}px`;
+    intriguePanel.style.right = `${window.innerWidth - safeRight}px`;
+    intriguePanel.style.maxWidth = "";
+    intriguePanel.style.transform = "";
+
+    if (intrigueBar) {
+      intrigueBar.style.maxWidth = `${Math.min(760, safeWidth)}px`;
+    }
+  }
+
+  _positionCombatLayout() {
     const panel = document.querySelector(".narrative-hud-combat-pool-panel");
     const activePortrait = document.querySelector(".narrative-hud-active-portrait");
     const timeline = document.querySelector(".narrative-hud-combat-timeline-panel");
-    const intriguePanel = document.querySelector(".narrative-hud-intrigue-panel");
-    const intrigueBar = document.querySelector(".narrative-hud-intrigue-bar");
-    const safeGap = Math.max(8, Math.min(12, window.innerWidth * 0.008));
-    const foundrySafeLeft = this._getFoundryLeftSafeEdge(safeGap);
-
-    const sidebar = document.getElementById("sidebar");
-    const sidebarRect = sidebar?.getBoundingClientRect();
-    const sidebarStyle = sidebar ? window.getComputedStyle(sidebar) : null;
-    const sidebarVisible = Boolean(
-      sidebar
-      && sidebarRect
-      && sidebarRect.width > 20
-      && sidebarRect.height > 20
-      && sidebarStyle?.display !== "none"
-      && sidebarStyle?.visibility !== "hidden"
-      && sidebarRect.left < window.innerWidth
-    );
-    const safeRight = Math.max(
-      safeGap,
-      sidebarVisible ? sidebarRect.left - safeGap : window.innerWidth - safeGap
-    );
-    const safeLeft = Math.min(foundrySafeLeft, safeRight);
-    const safeWidth = Math.max(0, safeRight - safeLeft);
-
-    if (intriguePanel) {
-      intriguePanel.style.left = `${safeLeft + safeWidth / 2}px`;
-      intriguePanel.style.maxWidth = `${safeWidth}px`;
-      if (intrigueBar) intrigueBar.style.maxWidth = `${Math.min(760, safeWidth)}px`;
-    }
+    const { safeGap, safeLeft, safeRight, safeWidth } = this._getHudSafeArea();
 
     if (!panel) return;
 
@@ -709,6 +707,36 @@ class NarrativeHudOverlay {
 
     activePortrait.style.left = `${compactLeft}px`;
     activePortrait.style.top = `${timelineRect.bottom + safeGap}px`;
+  }
+
+  _getHudSafeArea() {
+    const safeGap = Math.max(8, Math.min(12, window.innerWidth * 0.008));
+    const foundrySafeLeft = this._getFoundryLeftSafeEdge(safeGap);
+    const sidebar = document.getElementById("sidebar");
+    const sidebarRect = sidebar?.getBoundingClientRect();
+    const sidebarStyle = sidebar ? window.getComputedStyle(sidebar) : null;
+    const sidebarVisible = Boolean(
+      sidebar
+      && sidebarRect
+      && sidebarRect.width > 20
+      && sidebarRect.height > 20
+      && sidebarStyle?.display !== "none"
+      && sidebarStyle?.visibility !== "hidden"
+      && sidebarRect.left < window.innerWidth
+    );
+    const safeRight = Math.max(
+      safeGap,
+      sidebarVisible ? sidebarRect.left - safeGap : window.innerWidth - safeGap
+    );
+    const safeLeft = Math.min(foundrySafeLeft, safeRight);
+    const safeWidth = Math.max(0, safeRight - safeLeft);
+
+    return {
+      safeGap,
+      safeLeft,
+      safeRight,
+      safeWidth
+    };
   }
 
   _getFoundryLeftSafeEdge(gap) {
@@ -1029,12 +1057,12 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("ready", () => {
-  console.log("Narrative HUD | Ready V0.37");
+  console.log("Narrative HUD | Ready V0.38");
 
   window.addEventListener("resize", () => {
-    narrativeHudOverlay?._positionCombatPoolPanel();
+    narrativeHudOverlay?._positionHudLayout();
   });
-  window.setInterval(() => narrativeHudOverlay?._positionCombatPoolPanel(), 500);
+  window.setInterval(() => narrativeHudOverlay?._positionHudLayout(), 500);
 
   narrativeHudOverlay = new NarrativeHudOverlay();
   narrativeHudOverlay.render();
