@@ -149,7 +149,7 @@ class NarrativeHudOverlay {
           ${game.user.isGM ? `<button type="button" class="narrative-hud-clear">Vider Timeline</button>` : ""}
           <button type="button" class="narrative-hud-refresh">&#8635;</button>
         </div>
-        <span class="narrative-hud-version">V0.38</span>
+        <span class="narrative-hud-version">V0.39</span>
       </section>
 
       ${this._renderActivePortrait(activeItem)}
@@ -628,28 +628,8 @@ class NarrativeHudOverlay {
   }
 
   _positionHudLayout() {
-    if (isIntrigueMode()) {
-      this._positionIntriguePanel();
-      return;
-    }
-
-    this._positionCombatLayout();
-  }
-
-  _positionIntriguePanel() {
-    const intriguePanel = document.querySelector(".narrative-hud-intrigue-panel");
-    const intrigueBar = document.querySelector(".narrative-hud-intrigue-bar");
-    if (!intriguePanel) return;
-
-    const { safeLeft, safeRight, safeWidth } = this._getHudSafeArea();
-
-    intriguePanel.style.left = `${safeLeft}px`;
-    intriguePanel.style.right = `${window.innerWidth - safeRight}px`;
-    intriguePanel.style.maxWidth = "";
-    intriguePanel.style.transform = "";
-
-    if (intrigueBar) {
-      intrigueBar.style.maxWidth = `${Math.min(760, safeWidth)}px`;
+    if (isCombatMode()) {
+      this._positionCombatLayout();
     }
   }
 
@@ -1057,7 +1037,7 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("ready", () => {
-  console.log("Narrative HUD | Ready V0.38");
+  console.log("Narrative HUD | Ready V0.39");
 
   window.addEventListener("resize", () => {
     narrativeHudOverlay?._positionHudLayout();
